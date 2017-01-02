@@ -5,6 +5,7 @@ import urllib.error
 from html.parser import HTMLParser
 import re
 import sys
+import calendar
 
 # global definitions
 
@@ -14,6 +15,7 @@ imageDir = saveDir + '/images'
 badImportTitle = 'Imported event&nbsp;Original'
 firstYear = 2006
 lastYear = 2007
+
 
 
 
@@ -48,7 +50,7 @@ class indexPage:
         print('<p>year:', year, file = self.indexFile)
         
     def addMonth(self, month):
-        print('<p>&nbsp;&nbsp;month:', month, file = self.indexFile)
+        print('<p>&nbsp;&nbsp;month:', calendar.month_name[month], file = self.indexFile)
 
     def addPost(self, title, link):
         print('<p>&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"' + link + '\">' + title + '</a>', file = self.indexFile)
@@ -61,7 +63,7 @@ def title(text, url):
     if found:
         title = found.group(1).strip()
         if title == '' or title == badImportTitle:
-            title = '[image/video]'        
+            title = '[image/video]'
     else:
         report(url + ': no TITLE tag')
         title = '???'
@@ -78,7 +80,6 @@ class MonthPageParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == 'a' and attrs[0][0] == 'href':
             self.link = attrs[0][1]
-            #if re.match(r'http://lj.rossia.org/users/'+user+r'/\d*.html', self.link):
             if re.match(rootUrl + r'/\d*.html', self.link):
                 self.status = 'ready_for_header'
             
@@ -109,13 +110,13 @@ class ImageSaver(HTMLParser):
                     urllib.request.urlretrieve(imageUrl,  targetImageName)
                 except Exception:
                     report('cannot download image ' + imageUrl)
-            elif not (imageUrl.startswith('/') or imageUrl.startswith('http://lj.rossia.org')): 
+            elif not imageUrl.startswith(('/', blogUrl, 'http://stat.livejournal.com/img/talk/')): 
                 report('two images with the same name ' + imageUrl)
 
 def processYear(year):
     index.addYear(year)
     for month in reversed(range(12)):
-        processMonth(year, str(month+1))
+        processMonth(year, month+1)
 
 def processPost(text):
     imageSaver.feed(text)
@@ -127,7 +128,7 @@ def processMonth(year, month):
     index.addMonth(month)
     
     try:
-        monthPage = urllib.request.urlopen(rootUrl + '/' + year + '/' + month)
+        monthPage = urllib.request.urlopen(rootUrl + '/' + year + '/%.2d' % month)
     except urllib.error.URLError as e:
         report('URLError on ' + monthPage)
       
@@ -160,7 +161,7 @@ if len(sys.argv) < 2:
 user = sys.argv[1]
 rootUrl = blogUrl + '/users/' + user
 
-index = indexPage('c:/tmp/index.html')   
+index = indexPage(saveDir + '/index.html')   
 imageSaver = ImageSaver(imageDir)
      
 os.makedirs(saveDir, exist_ok = True)
@@ -175,11 +176,3 @@ for year in reversed(range(firstYear, lastYear + 1)):
         continue
     processYear(str(year))    
 
-
-# !!! good index and logging
-
-# format month
-# do not truncate words in titles
-# cannot fetch url or image
-# posts with no text (image/link/youtube)
-# progress indicator
