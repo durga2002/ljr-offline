@@ -14,9 +14,12 @@ saveDir = 'c:/tmp'
 imageDir = saveDir + '/images'
 badImportTitle = 'Imported event&nbsp;Original'
 firstYear = 2006
-lastYear = 2007
+lastYear = 2006
 
-
+# TO DO
+# repository
+# refactor
+# spinner
 
 
 # errors, warnings
@@ -40,20 +43,20 @@ class indexPage:
         else:
             log('no target index name is spcified, using stdout')
             self.indexFile = sys.stdout
-        print('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html lang="en"> <head> <meta http-equiv="content-type" content="text/html; charset=utf-8"> <title>Index</title> </head> <body>', file = self.indexFile)
-    
+        print('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html lang="en"> <head> <meta http-equiv="content-type" content="text/html; charset=utf-8"> <title>Index</title> </head> <body style="background-color:cornsilk;">', file = self.indexFile)
+            
     def __del__(self):
         print('<p></body> </html>', file = self.indexFile)
         self.indexFile.close()
         
     def addYear(self, year):
-        print('<p>year:', year, file = self.indexFile)
+        print('<h1 style="font-family:verdana;">' + year + '</h1>', file = self.indexFile)
         
     def addMonth(self, month):
-        print('<p>&nbsp;&nbsp;month:', calendar.month_name[month], file = self.indexFile)
+        print('<h3 style="font-family:verdana;">' + calendar.month_name[month] + '</h3>', file = self.indexFile)
 
     def addPost(self, title, link):
-        print('<p>&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"' + link + '\">' + title + '</a>', file = self.indexFile)
+        print('<p style="font-family:verdana;">&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"' + link + '\">' + title + '</a>', file = self.indexFile)
       
 
 #########################
@@ -143,15 +146,8 @@ def processMonth(year, month):
         with open(localFileName, mode='w', encoding='utf_8') as file:
             file.write(text)    
         subject = title(text, postUrl)
-        log(subject)
-        
-        #if post[0] == '(no subject)':
-            ##postParser.feed(text)
-            ##title = postParser.header()
-        #else:
-            #title = post[0]
+        print('*')
 
-        # update index
         index.addPost(subject, localFileName)
       
 if len(sys.argv) < 2:
