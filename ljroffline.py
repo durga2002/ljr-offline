@@ -7,12 +7,15 @@ import sys
 import calendar
 import itertools
 from html.parser import HTMLParser
+import requests
 
 # TO DO
-# don't compile regexes
-# extend image file name pattern (tom_of_finland_15.jpg?w=640)
-#check why http://i.piccy.info/i9/ecfd943a1e2639cfecae2c217f9e8087/1478666204/7773/1087829/14786577994840s_240.jpg is reported as can't download and why its link is left not localized.
-2016
+# =====
+# check what happened with saved pages (they are all bad)
+# replace image saver with manual parsing/updating
+# fix filenames like c:/tmp/images/tom_of_finland_15.jpg?w=640 
+# Auth http://docs.python-requests.org/en/master/user/authentication/
+
 ############# CLASSES ####################
 class g: #globals
     user = ''    
@@ -63,9 +66,15 @@ class ImageSaver(HTMLParser):
             targetImageName = g.imageDir + '/' + imageName
             if not os.path.exists(targetImageName):
                 try:
-                    urllib.request.urlretrieve(imageUrl,  targetImageName)
-                except Exception:
+                    req = requests.get(imageUrl, headers={'User-agent': 'Mozilla/5.0'})
+                except e:
+                    pass                    
+                if req.ok:
+                    with open(targetImageName, 'wb') as imgFile:
+                        imgFile.write(req.content)
+                else:
                     report('cannot download image ' + imageUrl)
+
             elif not imageUrl.startswith(('/', g.blogUrl, 'http://stat.livejournal.com/img/talk/')): 
                 report('two images with the same name ' + imageUrl)
                 
@@ -78,7 +87,7 @@ def report(s):
 
 
 def title(text, url):
-    found = searchTitleRegex.search(text)
+    found = re.search(r'<title>'+g.user+r': (.*)</title>', text, flags=re.IGNORECASE)
     if found:
         title = found.group(1).strip()
         if title == '' or title == g.badImportTitle:
@@ -97,7 +106,7 @@ def processYear(year):
 def processPost(text):
     imageSaver.feed(text)
     text.replace(g.rootUrl, '.')
-    text = replaceImageLinkRegex.sub(r'="images/\1"', text)
+    text = re.sub(r'=\s*\".*/([^/]+[gif|jpeg|jpg|png|bmp|svg].*)\s*\"', r'="images/\1"', text, flags=re.IGNORECASE)
     return text
 
 def processMonth(year, month):
@@ -109,10 +118,15 @@ def processMonth(year, month):
         report('URLError on ' + monthPage)
       
     monthHtml = monthPage.read().decode('utf-8')
-    posts = findPostsLinksRegex.findall(monthHtml)
+    posts = re.findall(g.rootUrl + r'/\d*.html', monthHtml)
     
     for postUrl in posts:
-        text = urllib.request.urlopen(postUrl).read().decode('utf-8', 'ignore')
+        try:
+            text = urllib.request.urlopen(postUrl).read().decode('utf-8', 'ignore')
+        except urllib.error.URLError as e:
+            report('URLError on ' + postUrl)
+            index.addPost('BAD POST: ' + postUrl, '')
+            continue
         text = processPost(text)
         postFileName = postUrl.split('/')[-1]
         localFileName = g.saveDir + '/' + postFileName
@@ -148,9 +162,6 @@ index = Index()
 
 imageSaver = ImageSaver()
 spinner = ProgressSpinner()
-searchTitleRegex = re.compile(r'<title>'+g.user+r': (.*)</title>', flags=re.IGNORECASE)
-replaceImageLinkRegex = re.compile(r'=\s*\".*/([^/]+gif|jpeg|jpg|png|bmp|svg)\s*\"', flags=re.IGNORECASE)
-findPostsLinksRegex = re.compile(g.rootUrl + r'/\d*.html')
 
 for year in reversed(range(firstYear, lastYear + 1)):
     yearUrl = g.rootUrl + '/' + str(year)
