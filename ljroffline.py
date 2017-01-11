@@ -11,9 +11,7 @@ import requests
 
 # TO DO
 # =====
-# check what happened with saved pages (they are all bad)
-# replace image saver with manual parsing/updating
-# fix filenames like c:/tmp/images/tom_of_finland_15.jpg?w=640 
+# fix local links: text.replace(g.rootUrl, '.') 
 # Auth http://docs.python-requests.org/en/master/user/authentication/
 
 ############# CLASSES ####################
@@ -103,10 +101,55 @@ def processYear(year):
     for month in reversed(range(12)):
         processMonth(year, month+1)
 
-def processPost(text):
+def processPost2(text):
     imageSaver.feed(text)
     text.replace(g.rootUrl, '.')
     text = re.sub(r'=\s*\".*/([^/]+[gif|jpeg|jpg|png|bmp|svg].*)\s*\"', r'="images/\1"', text, flags=re.IGNORECASE)
+    #god regex: r'=\s*\".*/([^/]+gif|jpeg|jpg|png|bmp|svg)([^\"]*)"', r'="images/\1"'    download \1\2 but save \1
+    return text
+
+def downloadImage(imageUrl, imageFileName):
+    if imageUrl.startswith('/'):
+        imageUrl = g.blogUrl + imageUrl
+    targetImageName = g.imageDir + '/' + imageFileName
+    
+    if not os.path.exists(targetImageName):
+        try:
+            req = requests.get(imageUrl, headers={'User-agent': 'Mozilla/5.0'})
+        except e:
+            return ''                    
+        
+        if not req.ok:
+            return ''
+        
+        with open(targetImageName, 'wb') as imgFile:
+            imgFile.write(req.content)
+            imgFile.close()
+
+    elif not imageUrl.startswith(('/', g.blogUrl, 'http://stat.livejournal.com/img/talk/')): 
+        report('Two images with the same name ' + imageUrl)  
+        return ''
+    
+    return targetImageName
+    
+        
+def processImage(matchObj):
+    imageUrl =  matchObj.group(2)
+    imageFileName = re.search(r'.*/([^/]*[jpeg|jpg|png|gif|bmp])\W*.*', imageUrl).group(1)
+    if not imageFileName:
+        report('Can not understand image URL: '+ imageUrl)
+        return matchObj.group(0)
+    localImagePath = downloadImage(imageUrl, imageFileName)
+    if localImagePath == '':
+        report('Can not download image: '+ imageUrl)
+        return matchObj.group(0)         
+    else:
+        return '<img %s src="%s"%s>' % (matchObj.group(1), localImagePath, matchObj.group(3))
+
+    
+def processPost(text):
+    text = re.sub(r'<img\s*(.*?)\s*src\s*=\s*\"([^\"]*)\"([^>]*)>', processImage, text, flags=re.IGNORECASE)
+    text = re.sub(r'('+g.rootUrl+')', '.', text)    
     return text
 
 def processMonth(year, month):
