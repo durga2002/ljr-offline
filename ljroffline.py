@@ -11,7 +11,6 @@ import requests
 
 # TO DO
 # =====
-# fix local links: text.replace(g.rootUrl, '.') 
 # Auth http://docs.python-requests.org/en/master/user/authentication/
 
 ############# CLASSES ####################
@@ -53,36 +52,11 @@ class Index:
     def addPost(self, title, link):
         print('<p style="font-family:verdana;">&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"' + link + '\">' + title + '</a>', file = self.indexFile)
          
-class ImageSaver(HTMLParser):
-
-    def handle_starttag(self, tag, attrs):
-        if tag == 'img' and attrs[0][0] == 'src':
-            imageUrl = attrs[0][1]
-            imageName = imageUrl.split('/')[-1]
-            if imageUrl.startswith('/'):
-                imageUrl = g.blogUrl + imageUrl
-            targetImageName = g.imageDir + '/' + imageName
-            if not os.path.exists(targetImageName):
-                try:
-                    req = requests.get(imageUrl, headers={'User-agent': 'Mozilla/5.0'})
-                except e:
-                    pass                    
-                if req.ok:
-                    with open(targetImageName, 'wb') as imgFile:
-                        imgFile.write(req.content)
-                else:
-                    report('cannot download image ' + imageUrl)
-
-            elif not imageUrl.startswith(('/', g.blogUrl, 'http://stat.livejournal.com/img/talk/')): 
-                report('two images with the same name ' + imageUrl)
-                
                 
 ################# FUNCTIONS #####################
                 
 def report(s):
     print('\b' + s)
-
-
 
 def title(text, url):
     found = re.search(r'<title>'+g.user+r': (.*)</title>', text, flags=re.IGNORECASE)
@@ -100,13 +74,6 @@ def processYear(year):
     index.addYear(year)
     for month in reversed(range(12)):
         processMonth(year, month+1)
-
-def processPost2(text):
-    imageSaver.feed(text)
-    text.replace(g.rootUrl, '.')
-    text = re.sub(r'=\s*\".*/([^/]+[gif|jpeg|jpg|png|bmp|svg].*)\s*\"', r'="images/\1"', text, flags=re.IGNORECASE)
-    #god regex: r'=\s*\".*/([^/]+gif|jpeg|jpg|png|bmp|svg)([^\"]*)"', r'="images/\1"'    download \1\2 but save \1
-    return text
 
 def downloadImage(imageUrl, imageFileName):
     if imageUrl.startswith('/'):
@@ -148,8 +115,13 @@ def processImage(matchObj):
 
     
 def processPost(text):
+    
+    # save images
     text = re.sub(r'<img\s*(.*?)\s*src\s*=\s*\"([^\"]*)\"([^>]*)>', processImage, text, flags=re.IGNORECASE)
+    
+    # make links local
     text = re.sub(r'('+g.rootUrl+')', '.', text)    
+    
     return text
 
 def processMonth(year, month):
@@ -203,7 +175,6 @@ g.rootUrl = g.blogUrl + '/users/' + g.user
 
 index = Index()   
 
-imageSaver = ImageSaver()
 spinner = ProgressSpinner()
 
 for year in reversed(range(firstYear, lastYear + 1)):
