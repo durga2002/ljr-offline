@@ -9,10 +9,14 @@ import itertools
 from html.parser import HTMLParser
 import requests
 
-# TO DO
-# =====
-# Auth http://docs.python-requests.org/en/master/user/authentication/
-
+# TODO
+# Two images with the same name http://i43.tinypic.com/242wm1i.jpg
+# Can not download image: http://i43.tinypic.com/242wm1i.jpg -- wrong message
+#
+# why cannot download from wikipedia? http://upload.wikimedia.org/wikipedia/commons/e/e4/Cathars_expelled.JPG http://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Fryne_przed_areopagiem.jpg/800px-Fryne_przed_areopagiem.jpg
+# http://lj.rossia.org/users/ogles/77735.html
+#
+# http://lj.rossia.org/users/ogles/25878.html -- stupid exception on fetching image. Add exception handling.
 ############# CLASSES ####################
 class g: #globals
     user = ''    
@@ -47,6 +51,7 @@ class Index:
         print('<h1 style="font-family:verdana;">' + year + '</h1>', file = self.indexFile)
         
     def addMonth(self, month):
+        self.indexFile.flush()
         print('<h3 style="font-family:verdana;">' + calendar.month_name[month] + '</h3>', file = self.indexFile)
 
     def addPost(self, title, link):
@@ -131,6 +136,7 @@ def processMonth(year, month):
         monthPage = urllib.request.urlopen(g.rootUrl + '/' + year + '/%.2d' % month)
     except urllib.error.URLError as e:
         report('URLError on ' + monthPage)
+        return
       
     monthHtml = monthPage.read().decode('utf-8')
     posts = re.findall(g.rootUrl + r'/\d*.html', monthHtml)
@@ -186,4 +192,4 @@ for year in reversed(range(firstYear, lastYear + 1)):
         continue
     processYear(str(year))
     
-    report("\bDone.")
+report("\bDone.")
