@@ -9,14 +9,6 @@ import itertools
 from html.parser import HTMLParser
 import requests
 
-# TODO
-# Two images with the same name http://i43.tinypic.com/242wm1i.jpg
-# Can not download image: http://i43.tinypic.com/242wm1i.jpg -- wrong message
-#
-# why cannot download from wikipedia? http://upload.wikimedia.org/wikipedia/commons/e/e4/Cathars_expelled.JPG http://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Fryne_przed_areopagiem.jpg/800px-Fryne_przed_areopagiem.jpg
-# http://lj.rossia.org/users/ogles/77735.html
-#
-# http://lj.rossia.org/users/ogles/25878.html -- stupid exception on fetching image. Add exception handling.
 ############# CLASSES ####################
 class g: #globals
     user = ''    
@@ -38,7 +30,7 @@ class Index:
         indexFileName = g.saveDir + '/index.html'
         try:
             self.indexFile = open(file=indexFileName, mode='w', encoding = 'utf-8')
-        except OSError:
+        except: #OSError:
             report('Cannot create index file ' + indexFileName)
             sys.exit(-1)
         print('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"> <html lang="en"> <head> <meta http-equiv="content-type" content="text/html; charset=utf-8"> <title>Index</title> </head> <body style="background-color:cornsilk;">', file = self.indexFile)
@@ -88,11 +80,13 @@ def downloadImage(imageUrl, imageFileName):
     if not os.path.exists(targetImageName):
         try:
             req = requests.get(imageUrl, headers={'User-agent': 'Mozilla/5.0'})
-        except e:
-            return ''                    
+        except: # requests.exceptions.RequestException as e:
+            report('Can not download image: '+ imageUrl)
+            return targetImageName                    
         
         if not req.ok:
-            return ''
+            report('Can not download image: '+ imageUrl)
+            return targetImageName
         
         with open(targetImageName, 'wb') as imgFile:
             imgFile.write(req.content)
@@ -100,32 +94,28 @@ def downloadImage(imageUrl, imageFileName):
 
     elif not imageUrl.startswith(('/', g.blogUrl, 'http://stat.livejournal.com/img/talk/')): 
         report('Two images with the same name ' + imageUrl)  
-        return ''
     
     return targetImageName
     
         
 def processImage(matchObj):
     imageUrl =  matchObj.group(2)
-    imageFileName = re.search(r'.*/([^/]*[jpeg|jpg|png|gif|bmp])\W*.*', imageUrl).group(1)
+    imageFileName = re.search(r'.*/([^/]*[jpeg|jpg|png|gif|bmp])\W*.*', imageUrl, flags=re.IGNORECASE).group(1)
     if not imageFileName:
         report('Can not understand image URL: '+ imageUrl)
         return matchObj.group(0)
     localImagePath = downloadImage(imageUrl, imageFileName)
-    if localImagePath == '':
-        report('Can not download image: '+ imageUrl)
-        return matchObj.group(0)         
-    else:
-        return '<img %s src="%s"%s>' % (matchObj.group(1), localImagePath, matchObj.group(3))
+    imageLink = '<img %s src="%s"%s>' % (matchObj.group(1), localImagePath, matchObj.group(3))
+    return imageLink
 
     
 def processPost(text):
     
     # save images
-    text = re.sub(r'<img\s*(.*?)\s*src\s*=\s*\"([^\"]*)\"([^>]*)>', processImage, text, flags=re.IGNORECASE)
+    (text, _) = re.subn(r'<img\s*(.*?)\s*src\s*=\s*\"([^\"]*)\"([^>]*)>', processImage, text, flags=re.IGNORECASE)
     
     # make links local
-    text = re.sub(r'('+g.rootUrl+')', '.', text)    
+    (text, _) = re.subn(r'('+g.rootUrl+')', '.', text)    
     
     return text
 
@@ -134,7 +124,7 @@ def processMonth(year, month):
     
     try:
         monthPage = urllib.request.urlopen(g.rootUrl + '/' + year + '/%.2d' % month)
-    except urllib.error.URLError as e:
+    except: #urllib.error.URLError as e:
         report('URLError on ' + monthPage)
         return
       
@@ -144,7 +134,7 @@ def processMonth(year, month):
     for postUrl in posts:
         try:
             text = urllib.request.urlopen(postUrl).read().decode('utf-8', 'ignore')
-        except urllib.error.URLError as e:
+        except: # urllib.error.URLError as e:
             report('URLError on ' + postUrl)
             index.addPost('BAD POST: ' + postUrl, '')
             continue
@@ -187,9 +177,9 @@ for year in reversed(range(firstYear, lastYear + 1)):
     yearUrl = g.rootUrl + '/' + str(year)
     try:
         yearPage = urllib.request.urlopen(yearUrl)
-    except urllib.error.URLError as e:
+    except: # urllib.error.URLError as e:
         report('URLError on ' + yearUrl)
         continue
     processYear(str(year))
     
-report("\bDone.")
+report("Done.")
