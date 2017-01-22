@@ -54,6 +54,16 @@ class Index:
                 
 def report(s):
     print('\b' + s)
+    
+def fetchPage(url):
+    for retry in range(3):
+        try:
+            page = urllib.request.urlopen(url)
+        except:
+            continue
+        return page
+    
+    raise urllib.error.URLError
 
 def title(text, url):
     found = re.search(r'<title>'+g.user+r': (.*)</title>', text, flags=re.IGNORECASE)
@@ -122,10 +132,11 @@ def processPost(text):
 def processMonth(year, month):
     index.addMonth(month)
     
+    monthPageUrl = g.rootUrl + '/' + year + '/%.2d' % month
     try:
-        monthPage = urllib.request.urlopen(g.rootUrl + '/' + year + '/%.2d' % month)
-    except: #urllib.error.URLError as e:
-        report('URLError on ' + monthPage)
+        monthPage = fetchPage(monthPageUrl)
+    except:
+        report('URLError on ' + monthPageUrl)
         return
       
     monthHtml = monthPage.read().decode('utf-8')
@@ -133,8 +144,8 @@ def processMonth(year, month):
     
     for postUrl in posts:
         try:
-            text = urllib.request.urlopen(postUrl).read().decode('utf-8', 'ignore')
-        except: # urllib.error.URLError as e:
+            text = fetchPage(postUrl).read().decode('utf-8', 'ignore')
+        except:
             report('URLError on ' + postUrl)
             index.addPost('BAD POST: ' + postUrl, '')
             continue
@@ -176,7 +187,7 @@ spinner = ProgressSpinner()
 for year in reversed(range(firstYear, lastYear + 1)):
     yearUrl = g.rootUrl + '/' + str(year)
     try:
-        yearPage = urllib.request.urlopen(yearUrl)
+        yearPage = fetchPage(yearUrl)
     except: # urllib.error.URLError as e:
         report('URLError on ' + yearUrl)
         continue
